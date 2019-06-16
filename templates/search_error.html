@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+     <head>
+         <title>National Park Service Information Kiosk</title>
+         <link rel="shortcut icon" href="https://www.nps.gov/common/commonspot/templates/images/icons/favicon.ico" type="image/x-icon" />
+         <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles.css') }}">
+     </head>
+     <body>
+        <div class = "header">
+            <a href="/">
+                <img align = "left" class = "header_image" 
+                    src= "https://upload.wikimedia.org/wikipedia/commons/1/1d/US-NationalParkService-Logo.svg">
+            </a>
+            <a href="/">
+                <h1 class = "header">National Park Service<br/> Information Kiosk</h1>
+            </a>
+        </div>
+        <br>
+        <div class="sidenav">
+            <div class = "query">
+                <form method="POST">
+                    <input class = "searchbox" type="text" placeholder = "Park Name" name="park" />
+                    <input class = "searchbox" type="text" placeholder = "Designation" name="designation" />
+                    <input class = "searchbox" type="text" placeholder = "State Code" name="state" />
+                    <input class = "button" type="submit" value="Search" />
+                    
+                </form> 	
+            </div>
+        </div>
+
+        <div class = "results">
+            <h1>Error: National Park Not Found</h1>
+            <h3>Please check the spelling of your query and try again.</h3>
+            <img src = "https://i.redd.it/9u9gko3z31bz.jpg">
+        </div>
+        <p style="text-align:center;">
+            <a href = "https://www.nps.gov/index.htm">
+                <img align = "middle" class = "footer" src= "https://upload.wikimedia.org/wikipedia/commons/1/1d/US-NationalParkService-Logo.svg">
+            </a>
+        </p>
+        <p style="text-align:center; color: #505050">Creator: Kenneth Shinn <br> 
+        Email: kshinn@seas.upenn.edu</p>
+     </body>
+ </html>

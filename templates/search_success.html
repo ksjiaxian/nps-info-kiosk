@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+     <head>
+         <title>National Park Service Information Kiosk</title>
+         <link rel="shortcut icon" href="https://www.nps.gov/common/commonspot/templates/images/icons/favicon.ico" type="image/x-icon" />
+         <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles.css') }}">
+     </head>
+     <body>
+        <div class = "header">
+            <a href="/">
+                <img align = "left" class = "header_image" 
+                    src= "https://upload.wikimedia.org/wikipedia/commons/1/1d/US-NationalParkService-Logo.svg">
+            </a>
+            <a href="/">
+                <h1 class = "header">National Park Service<br/> Information Kiosk</h1>
+            </a>
+        </div>
+        <br>
+        
+
+        <div class="sidenav">
+
+            <div class = "query">
+                <form method="POST">
+                    <input class = "searchbox" type="text" placeholder = "Park Name" name="park" />
+                    <input class = "searchbox" type="text" placeholder = "Designation" name="designation" />
+                    <input class = "searchbox" type="text" placeholder = "State Code" name="state" />
+                    <input class = "button" type="submit" value="Search" />
+                    
+                </form> 	
+            </div>
+            <a href="#top">{{ title }}</a>
+            <a href="#description">Description</a>
+            <a href="#visitor">Visitor Centers</a>
+            <a href="#campground">Campgrounds</a>
+            <a href="#articles">Articles</a>
+            <a href="#events">Events</a>
+            <a href="#news">News</a>
+            <a href="#alerts">Alerts</a>
+            <a href="#places">Places</a>
+            <a href="#people">People</a>
+            <a href="#lessons">Lessons</a>
+            {{ npsurl|safe}}
+        </div>
+
+        <div class = "results">
+            <h2>{{ title }}</h2>
+            <a class = "anchor" id = "top"></a>
+            {{ imageURL|safe }}
+            <h3>Description:</h3>
+            <a class = "anchor" id = "description"></a>
+            <p>{{ description }}</p>
+            <h3>Visitor Center and Museum Information:</h3>
+            <a class = "anchor" id = "visitor"></a>
+            {{ visitor|safe }}
+            <h3>Campground Information:</h3>
+            <a class = "anchor" id = "campground"></a>
+            {{ campground|safe }}
+            <h3>Related Articles:</h3>
+            <a class = "anchor" id = "articles"></a>
+            {{ articles|safe }}
+            <h3>Events:</h3>
+            <a class = "anchor" id = "events"></a>
+            {{ events|safe }}
+            <h3>News:</h3>
+            <a class = "anchor" id = "news"></a>
+            {{ news|safe }}
+            <h3>Alerts:</h3>
+            <a class = "anchor" id = "alerts"></a>
+            {{ alerts|safe }}
+            <h3>Places:</h3>
+            <a class = "anchor" id = "places"></a>
+            {{ places|safe }}
+            <h3>People:</h3>
+            <a class = "anchor" id = "people"></a>
+            {{ people|safe }}
+            <h3>Lessons:</h3>
+            <a class = "anchor" id = "lessons"></a>
+            {{ lessons|safe }}
+        </div>
+        <br>
+        <p style="text-align:center;">
+            <a href = "https://www.nps.gov/index.htm">
+                <img align = "middle" class = "footer" src= "https://upload.wikimedia.org/wikipedia/commons/1/1d/US-NationalParkService-Logo.svg">
+            </a>
+        </p>
+        <p style="text-align:center; color: #505050">Creator: Kenneth Shinn <br> 
+        Email: kshinn@seas.upenn.edu</p>
+     </body>
+ </html>
+
