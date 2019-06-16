@@ -14,7 +14,7 @@ h2 {
 
 .results {
     width: 60%;
-    margin: 150px 10% 2% 25%;
+    margin: 140px 10% 2% 25%;
 }
 
 .query {
@@ -30,7 +30,7 @@ input[type = text] {
 }
 
 input[type = submit] {
-    width: 40%;
+    width: 100px;
     padding: 5px 20px;
     margin-top: 10px;
     box-sizing: border-box;
