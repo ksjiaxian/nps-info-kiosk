@@ -29,53 +29,31 @@
                     
                 </form> 	
             </div>
-            <a href="#top">{{ title }}</a>
-            <a href="#description">Description</a>
-            <a href="#visitor">Visitor Centers</a>
-            <a href="#campground">Campgrounds</a>
-            <a href="#articles">Articles</a>
-            <a href="#events">Events</a>
-            <a href="#news">News</a>
-            <a href="#alerts">Alerts</a>
-            <a href="#places">Places</a>
-            <a href="#people">People</a>
-            <a href="#lessons">Lessons</a>
+            <a href="/title">{{ title }}</a>
+            <a href="/visitorcenters">Visitor Centers</a>
+            <a href="/campgrounds">Campgrounds</a>
+            <a href="/articles">Articles</a>
+            <a href="/events">Events</a>
+            <a href="/news">News</a>
+            <a href="/alerts">Alerts</a>
+            <a href="/places">Places</a>
+            <a href="/people">People</a>
+            <a href="/lessons">Lessons</a>
             {{ npsurl|safe}}
         </div>
 
         <div class = "results">
             <h2>{{ title }}</h2>
-            <a class = "anchor" id = "top"></a>
             {{ imageURL|safe }}
-            <h3>Description:</h3>
-            <a class = "anchor" id = "description"></a>
-            <p>{{ description }}</p>
-            <h3>Visitor Center and Museum Information:</h3>
-            <a class = "anchor" id = "visitor"></a>
+            {{ description|safe }}
             {{ visitor|safe }}
-            <h3>Campground Information:</h3>
-            <a class = "anchor" id = "campground"></a>
-            {{ campground|safe }}
-            <h3>Related Articles:</h3>
-            <a class = "anchor" id = "articles"></a>
+            {{ campgrounds|safe }}
             {{ articles|safe }}
-            <h3>Events:</h3>
-            <a class = "anchor" id = "events"></a>
             {{ events|safe }}
-            <h3>News:</h3>
-            <a class = "anchor" id = "news"></a>
             {{ news|safe }}
-            <h3>Alerts:</h3>
-            <a class = "anchor" id = "alerts"></a>
             {{ alerts|safe }}
-            <h3>Places:</h3>
-            <a class = "anchor" id = "places"></a>
             {{ places|safe }}
-            <h3>People:</h3>
-            <a class = "anchor" id = "people"></a>
             {{ people|safe }}
-            <h3>Lessons:</h3>
-            <a class = "anchor" id = "lessons"></a>
             {{ lessons|safe }}
         </div>
         <br>

@@ -9,7 +9,11 @@ p {
 }
 
 h2 {
-    font-size: 32px;
+    font-size: 40px;
+}
+
+h3 {
+    font-size: 25px;
 }
 
 .results {
@@ -71,6 +75,11 @@ li {
 .results h5 {
     padding-left: 2%;
     margin: 0px;
+}
+
+#description {
+    padding-left: 0;
+    font-size: 15px;
 }
 
 .img_tile {
