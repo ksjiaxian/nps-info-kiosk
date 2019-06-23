@@ -1,26 +1,18 @@
 from flask import Flask, request, render_template, redirect, url_for, make_response
 import requests
 import random
-import string
 
 app = Flask(__name__)
 
-#this dictionary helps track and separate users' history
-history = {}
-
 @app.route('/')
 def home():
-    resp = make_response(render_template("index.html"))
-    #generate a random cookie
-    resp.set_cookie('session_id', ''.join(random.choices(string.ascii_uppercase + 
-                                                         string.digits, k=10)))
-    return resp
+    return render_template("index.html")
 
-def search(park_name, state_name, designation):
+def search(park_query, state_query, designation):
     parksresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "stateCode": state_name,
-                                "q": park_name + " " + designation,
+                                "stateCode": state_query,
+                                "q": park_query + " " + designation,
                                 "fields": "images",
                                 "sort": "fullName"})
     parksdata = parksresponse.json()
@@ -29,8 +21,8 @@ def search(park_name, state_name, designation):
     if len(parksdata['data']) < 1:
         parksresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "stateCode": state_name,
-                                "q": park_name,
+                                "stateCode": state_query,
+                                "q": park_query,
                                 "fields": "images",
                                 "sort": "fullName"})
         parksdata = parksresponse.json()
@@ -39,7 +31,7 @@ def search(park_name, state_name, designation):
     if len(parksdata['data']) < 1:
         parksresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "q": park_name,
+                                "q": park_query,
                                 "fields": "images",
                                 "sort": "fullName"})
         parksdata = parksresponse.json()   
@@ -48,68 +40,65 @@ def search(park_name, state_name, designation):
         #see which index is the searched park
         idx = 0
         for i in range(len(parksdata['data'])):
-            if park_name.lower() in parksdata['data'][i]['fullName'].lower():
+            if park_query.lower() in parksdata['data'][i]['fullName'].lower():
                 idx = i
-                
-        resp = make_response(redirect(url_for('title')))
-        
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
-        
-        global history
-        history[cookie] = {'parkCode': parksdata['data'][idx]['parkCode'],
-                            'parkTitle': str(parksdata['data'][idx]['fullName']),
-                            'npsurl': str(parksdata['data'][idx]['url'])}
-        
-        resp.set_cookie('session_id', cookie)
             
-        return resp
+        parkCode = parksdata['data'][idx]['parkCode']
+        parkTitle = str(parksdata['data'][idx]['fullName'])
+        
+        return (parkCode, parkTitle)
     
     except:
-        return render_template("search_error.html")
+        return ("","")
 
 @app.route('/', methods=['POST'])
 def search_output():
     if request.form['park'] == "" and request.form['state'] == "" and request.form['designation'] == "":
         return render_template("index.html")
     else:
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        (parkCode, parkTitle) = search(park_query, state_query, designation)
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
     
     
 @app.route('/title', methods=['GET', 'POST'])
 def title():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
         
+        parkCode = results[0]
+        parkTitle = results[1]
+        
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
-        
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the park data
         parkresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
                                 "fields": "images",
-                                "parkCode": history[cookie]['parkCode']})
+                                "parkCode": parkCode})
         parksdata = parkresponse.json()
         
         #get the image data
@@ -119,9 +108,9 @@ def title():
         return render_template("search_success.html", 
                                description ="<p id = \"description\">" +
                                             str(parksdata['data'][0]['description']) + "</p>", 
-                               title = history[cookie]['parkTitle'],
+                               title = parkTitle,
                                imageURL = imageURL,
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
+                               parkCode = parkCode
                                )
     
    
@@ -130,27 +119,33 @@ def title():
 def visitor_centers():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         
         #extract the contents of the visitor center data
         visitorresponse = requests.get("https://developer.nps.gov/api/v1/visitorcenters?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
                                 "fields": "operatingHours",
-                                "parkCode": history[cookie]['parkCode'],
+                                "parkCode": parkCode,
                                 "sort":"fullName"})
         vcdata = visitorresponse.json()
         
@@ -182,34 +177,39 @@ def visitor_centers():
         
         return render_template("search_success.html", 
                                visitor = vcString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
+                               title = parkTitle,
+                               parkCode = parkCode
                                )
                     
 @app.route('/campgrounds', methods=['GET', 'POST'])
-def camp_grounds():
+def campgrounds():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
-        
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the campgrounds data
         cgresponse = requests.get("https://developer.nps.gov/api/v1/campgrounds?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode']})
+                                "parkCode": parkCode})
         cgdata = cgresponse.json()
         cgString = "<h3>Campground Information:</h3>"
         numOfCampgrounds = len(cgdata['data'])
@@ -224,33 +224,39 @@ def camp_grounds():
         
         return render_template("search_success.html", 
                                campgrounds = cgString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
+                               title = parkTitle,
+                               parkCode = parkCode
                                )
     
 @app.route('/articles', methods=['GET', 'POST'])
 def articles():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the articles data
         artresponse = requests.get("https://developer.nps.gov/api/v1/articles?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode'],
+                                "parkCode": parkCode,
                                 "fields":"listingDescription"})
         artdata = artresponse.json()
         artString = "<h3>Related Articles:</h3>"
@@ -266,32 +272,38 @@ def articles():
                 
         return render_template("search_success.html", 
                                articles = artString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")
+                               title = parkTitle,
+                               parkCode = parkCode)
     
 @app.route('/events', methods=['GET', 'POST'])
 def events():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the events data
         evresponse = requests.get("https://developer.nps.gov/api/v1/events?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode']})
+                                "parkCode": parkCode})
         evdata = evresponse.json()
         evString = "<h3>Events:</h3>"
         numOfEvents = len(evdata['data'])
@@ -305,33 +317,39 @@ def events():
                 
         return render_template("search_success.html", 
                                events = evString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
+                               title = parkTitle,
+                               parkCode = parkCode
                                )
     
 @app.route('/news', methods=['GET', 'POST'])
 def news():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the news data
         newresponse = requests.get("https://developer.nps.gov/api/v1/newsreleases?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode']})
+                                "parkCode": parkCode})
         newdata = newresponse.json()
         newString = "<h3>News:</h3>"
         numOfNews = len(newdata['data'])
@@ -346,32 +364,38 @@ def news():
         
         return render_template("search_success.html", 
                                news = newString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")    
+                               title = parkTitle,
+                               parkCode = parkCode)    
     
 @app.route('/alerts', methods=['GET', 'POST'])
 def alerts():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the alerts data
         alresponse = requests.get("https://developer.nps.gov/api/v1/alerts?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode']})
+                                "parkCode": parkCode})
         aldata = alresponse.json()
         alString = "<h3>Alerts:</h3>"
         numOfAlerts = len(aldata['data'])
@@ -387,32 +411,38 @@ def alerts():
                 
         return render_template("search_success.html", 
                                alerts = alString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")     
+                               title = parkTitle,
+                               parkCode = parkCode)     
     
 @app.route('/places', methods=['GET', 'POST'])
 def places():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the places data
         plresponse = requests.get("https://developer.nps.gov/api/v1/places?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode'],
+                                "parkCode": parkCode,
                                 "fields":"listingImage"})
         pldata = plresponse.json()
         plString = "<h3>Places:</h3>"
@@ -430,32 +460,38 @@ def places():
             
         return render_template("search_success.html", 
                                places = plString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")    
+                               title = parkTitle,
+                               parkCode = parkCode)    
     
 @app.route('/people', methods=['GET', 'POST'])
 def people():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the people data
         peresponse = requests.get("https://developer.nps.gov/api/v1/people?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode'],
+                                "parkCode": parkCode,
                                 "fields":"listingImage"})
         pedata = peresponse.json()
         peString = "<h3>People:</h3>"
@@ -473,32 +509,38 @@ def people():
             
         return render_template("search_success.html", 
                                people = peString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>") 
+                               title = parkTitle,
+                               parkCode = parkCode) 
     
 @app.route('/lessons', methods=['GET', 'POST'])
 def lessons():
     if (request.method == "POST" and not (request.form['park'] == "" and 
         request.form['state'] == "" and request.form['designation'] == "")):
-        #pull the park data from the API
-        park_name = request.form['park']
-        state_name = request.form['state'].upper()
+        #pull the inputs from the website
+        park_query = request.form['park']
+        state_query = request.form['state'].upper()
         designation = request.form['designation']
         
-        return search(park_name, state_name, designation)
+        results = search(park_query, state_query, designation)
+        parkCode = results[0]
+        parkTitle = results[1]
         
+        #check if anything was returned 
+        if len(parkCode) < 1 and len(parkTitle) < 1:
+            return render_template("search_error.html")
+        
+        return redirect(url_for('title', 
+                                parkCode = parkCode, 
+                                parkTitle = parkTitle))
+    
     else:
-        cookie = ""
-        if 'session_id' in request.cookies:
-            cookie = request.cookies.get('session_id')
-        else:
-            #go back to the homepage and get a cookie
-            return redirect(url_for('home'))
+        parkCode = request.args['parkCode']
+        parkTitle = request.args['parkTitle']
         
         #extract the lessons data
         lesresponse = requests.get("https://developer.nps.gov/api/v1/lessonplans?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": history[cookie]['parkCode'],
+                                "parkCode": parkCode,
                                 "sort":"gradelevel"})
         lesdata = lesresponse.json()
         lesString = "<h3>Lessons:</h3>"
@@ -518,9 +560,9 @@ def lessons():
             
         return render_template("search_success.html", 
                                lessons = lesString, 
-                               title = history[cookie]['parkTitle'],
-                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>") 
+                               title = parkTitle,
+                               parkCode = parkCode) 
                     
     
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

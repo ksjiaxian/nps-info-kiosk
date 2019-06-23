@@ -16,32 +16,27 @@
             </a>
         </div>
         <br>
-        
-
         <div class="sidenav">
-
             <div class = "query">
                 <form method="POST">
                     <input class = "searchbox" type="text" placeholder = "Park Name" name="park" />
-                    <input class = "searchbox" type="text" placeholder = "Designation" name="designation" />
+                    <input class = "searchbox" type="text" placeholder = "Designation" name="designation"/>
                     <input class = "searchbox" type="text" placeholder = "State Code" name="state" />
-                    <input class = "button" type="submit" value="Search" />
-                    
+                    <input class = "button" type="submit" 
+                    value="Search" />
                 </form> 	
             </div>
-            <a href="/title">{{ title }}</a>
-            <a href="/visitorcenters">Visitor Centers</a>
-            <a href="/campgrounds">Campgrounds</a>
-            <a href="/articles">Articles</a>
-            <a href="/events">Events</a>
-            <a href="/news">News</a>
-            <a href="/alerts">Alerts</a>
-            <a href="/places">Places</a>
-            <a href="/people">People</a>
-            <a href="/lessons">Lessons</a>
-            {{ npsurl|safe}}
+            <a href="{{ url_for('title', parkCode = parkCode, parkTitle = title) }}">{{ title }}</a>
+            <a href="{{ url_for('visitor_centers', parkCode = parkCode, parkTitle = title) }}">Visitor Centers</a>
+            <a href="{{ url_for('campgrounds', parkCode = parkCode, parkTitle = title) }}">Campgrounds</a>
+            <a href="{{ url_for('articles', parkCode = parkCode, parkTitle = title) }}">Articles</a>
+            <a href="{{ url_for('events', parkCode = parkCode, parkTitle = title) }}">Events</a>
+            <a href="{{ url_for('news', parkCode = parkCode, parkTitle = title) }}">News</a>
+            <a href="{{ url_for('alerts', parkCode = parkCode, parkTitle = title) }}">Alerts</a>
+            <a href="{{ url_for('places', parkCode = parkCode, parkTitle = title) }}">Places</a>
+            <a href="{{ url_for('people', parkCode = parkCode, parkTitle = title) }}">People</a>
+            <a href="{{ url_for('lessons', parkCode = parkCode, parkTitle = title) }}">Lessons</a>
         </div>
-
         <div class = "results">
             <h2>{{ title }}</h2>
             {{ imageURL|safe }}
