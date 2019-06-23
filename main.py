@@ -1,16 +1,20 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, make_response
 import requests
 import random
+import string
 
 app = Flask(__name__)
 
-parkCode = ""
-parkTitle = ""
-npsurl = ""
+#this dictionary helps track and separate users' history
+history = {}
 
 @app.route('/')
 def home():
-    return render_template("index.html")
+    resp = make_response(render_template("index.html"))
+    #generate a random cookie
+    resp.set_cookie('session_id', ''.join(random.choices(string.ascii_uppercase + 
+                                                         string.digits, k=10)))
+    return resp
 
 def search(park_name, state_name, designation):
     parksresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
@@ -47,16 +51,23 @@ def search(park_name, state_name, designation):
             if park_name.lower() in parksdata['data'][i]['fullName'].lower():
                 idx = i
                 
-        #park code, name, and url of the returned park - save this information
-        global parkCode
-        global parkTitle
-        global npsurl
-        parkCode = parksdata['data'][idx]['parkCode']
-        parkTitle = str(parksdata['data'][idx]['fullName'])
-        npsurl = str(parksdata['data'][idx]['url'])
+        resp = make_response(redirect(url_for('title')))
         
-        #go straight to title of the searched park
-        return redirect(url_for('title'))
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
+        
+        global history
+        history[cookie] = {'parkCode': parksdata['data'][idx]['parkCode'],
+                            'parkTitle': str(parksdata['data'][idx]['fullName']),
+                            'npsurl': str(parksdata['data'][idx]['url'])}
+        
+        resp.set_cookie('session_id', cookie)
+            
+        return resp
     
     except:
         return render_template("search_error.html")
@@ -86,15 +97,19 @@ def title():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
+        
         
         #extract the park data
         parkresponse = requests.get("https://developer.nps.gov/api/v1/parks?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
                                 "fields": "images",
-                                "parkCode": parkCode})
+                                "parkCode": history[cookie]['parkCode']})
         parksdata = parkresponse.json()
         
         #get the image data
@@ -104,10 +119,9 @@ def title():
         return render_template("search_success.html", 
                                description ="<p id = \"description\">" +
                                             str(parksdata['data'][0]['description']) + "</p>", 
-                               title = parkTitle,
+                               title = history[cookie]['parkTitle'],
                                imageURL = imageURL,
-                               npsurl = "<a href=" + str(parksdata['data'][0]['url']) + 
-                                        ">Learn More</a>"
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
                                )
     
    
@@ -124,15 +138,19 @@ def visitor_centers():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
+        
         
         #extract the contents of the visitor center data
         visitorresponse = requests.get("https://developer.nps.gov/api/v1/visitorcenters?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
                                 "fields": "operatingHours",
-                                "parkCode": parkCode,
+                                "parkCode": history[cookie]['parkCode'],
                                 "sort":"fullName"})
         vcdata = visitorresponse.json()
         
@@ -164,8 +182,8 @@ def visitor_centers():
         
         return render_template("search_success.html", 
                                visitor = vcString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>"
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
                                )
                     
 @app.route('/campgrounds', methods=['GET', 'POST'])
@@ -180,14 +198,18 @@ def camp_grounds():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
-        #extract the camp grounds data
+        
+        #extract the campgrounds data
         cgresponse = requests.get("https://developer.nps.gov/api/v1/campgrounds?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode})
+                                "parkCode": history[cookie]['parkCode']})
         cgdata = cgresponse.json()
         cgString = "<h3>Campground Information:</h3>"
         numOfCampgrounds = len(cgdata['data'])
@@ -202,8 +224,8 @@ def camp_grounds():
         
         return render_template("search_success.html", 
                                campgrounds = cgString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>"
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
                                )
     
 @app.route('/articles', methods=['GET', 'POST'])
@@ -218,14 +240,17 @@ def articles():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the articles data
         artresponse = requests.get("https://developer.nps.gov/api/v1/articles?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode,
+                                "parkCode": history[cookie]['parkCode'],
                                 "fields":"listingDescription"})
         artdata = artresponse.json()
         artString = "<h3>Related Articles:</h3>"
@@ -241,8 +266,8 @@ def articles():
                 
         return render_template("search_success.html", 
                                articles = artString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>")
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")
     
 @app.route('/events', methods=['GET', 'POST'])
 def events():
@@ -256,14 +281,17 @@ def events():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the events data
         evresponse = requests.get("https://developer.nps.gov/api/v1/events?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode})
+                                "parkCode": history[cookie]['parkCode']})
         evdata = evresponse.json()
         evString = "<h3>Events:</h3>"
         numOfEvents = len(evdata['data'])
@@ -277,8 +305,8 @@ def events():
                 
         return render_template("search_success.html", 
                                events = evString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>"
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>"
                                )
     
 @app.route('/news', methods=['GET', 'POST'])
@@ -293,14 +321,17 @@ def news():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the news data
         newresponse = requests.get("https://developer.nps.gov/api/v1/newsreleases?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode})
+                                "parkCode": history[cookie]['parkCode']})
         newdata = newresponse.json()
         newString = "<h3>News:</h3>"
         numOfNews = len(newdata['data'])
@@ -315,8 +346,8 @@ def news():
         
         return render_template("search_success.html", 
                                news = newString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>")    
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")    
     
 @app.route('/alerts', methods=['GET', 'POST'])
 def alerts():
@@ -330,14 +361,17 @@ def alerts():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the alerts data
         alresponse = requests.get("https://developer.nps.gov/api/v1/alerts?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode})
+                                "parkCode": history[cookie]['parkCode']})
         aldata = alresponse.json()
         alString = "<h3>Alerts:</h3>"
         numOfAlerts = len(aldata['data'])
@@ -353,8 +387,8 @@ def alerts():
                 
         return render_template("search_success.html", 
                                alerts = alString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>")     
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")     
     
 @app.route('/places', methods=['GET', 'POST'])
 def places():
@@ -368,14 +402,17 @@ def places():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the places data
         plresponse = requests.get("https://developer.nps.gov/api/v1/places?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode,
+                                "parkCode": history[cookie]['parkCode'],
                                 "fields":"listingImage"})
         pldata = plresponse.json()
         plString = "<h3>Places:</h3>"
@@ -393,8 +430,8 @@ def places():
             
         return render_template("search_success.html", 
                                places = plString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>")    
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>")    
     
 @app.route('/people', methods=['GET', 'POST'])
 def people():
@@ -408,14 +445,17 @@ def people():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the people data
         peresponse = requests.get("https://developer.nps.gov/api/v1/people?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode,
+                                "parkCode": history[cookie]['parkCode'],
                                 "fields":"listingImage"})
         pedata = peresponse.json()
         peString = "<h3>People:</h3>"
@@ -433,8 +473,8 @@ def people():
             
         return render_template("search_success.html", 
                                people = peString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>") 
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>") 
     
 @app.route('/lessons', methods=['GET', 'POST'])
 def lessons():
@@ -448,14 +488,17 @@ def lessons():
         return search(park_name, state_name, designation)
         
     else:
-        global parkCode
-        global npsurl
-        global parkTitle
+        cookie = ""
+        if 'session_id' in request.cookies:
+            cookie = request.cookies.get('session_id')
+        else:
+            #go back to the homepage and get a cookie
+            return redirect(url_for('home'))
         
         #extract the lessons data
         lesresponse = requests.get("https://developer.nps.gov/api/v1/lessonplans?",
                         params={"api_key":"ytQsdNZsdNhfq788BHTHgUJ7IsW1qFNw0A3ALCfC",
-                                "parkCode": parkCode,
+                                "parkCode": history[cookie]['parkCode'],
                                 "sort":"gradelevel"})
         lesdata = lesresponse.json()
         lesString = "<h3>Lessons:</h3>"
@@ -475,8 +518,8 @@ def lessons():
             
         return render_template("search_success.html", 
                                lessons = lesString, 
-                               title = parkTitle,
-                               npsurl = "<a href=" + npsurl + ">Learn More</a>") 
+                               title = history[cookie]['parkTitle'],
+                               npsurl = "<a href=" + history[cookie]['npsurl'] + ">Learn More</a>") 
                     
     
 if __name__ == '__main__':
